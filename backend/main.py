@@ -12,25 +12,27 @@ Implements exactly 5 endpoints per assignment requirements:
 from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
-from io import BytesIO
-import pandas as pd
-from datetime import datetime
 from typing import List
 
 from backend.database import engine, Base, get_db
-from backend.models.orm_models import Client, Transaction, Violation
-from backend.dal.financial_dal import ClientDAL, TransactionDAL, ViolationDAL
 from backend.schemas.assignment_schemas import (
     UploadTransactionResponse,
     ClientResponse,
     ClientPositionsResponse,
-    PositionDetail,
     ViolationResponse,
     AnalyticsResponse,
 )
-from backend.schemas.financial_schemas import TransactionCreate, ViolationCreate, ClientCreate
-from backend.services.position_calculator import PositionCalculator
-from backend.services.analytics import AnalyticsService
+
+# Service imports
+from backend.services.file_validation import (
+    validate_file_type,
+    parse_file_content,
+    validate_required_columns,
+)
+from backend.services.transaction_upload_service import TransactionUploadService
+from backend.services.client_service import ClientRetrievalService, ClientPositionService
+from backend.services.violation_service import ViolationRetrievalService
+from backend.services.analytics_retrieval_service import AnalyticsRetrievalService
 
 # Create tables
 Base.metadata.create_all(bind=engine)
@@ -71,151 +73,29 @@ async def upload_transactions(
     Auto-creates clients if they don't exist.
     """
     try:
-        # Validate file type
-        filename = file.filename.lower()
-        if not (filename.endswith('.xlsx') or filename.endswith('.xls') or filename.endswith('.csv')):
-            raise HTTPException(
-                status_code=400,
-                detail="File must be .xlsx, .xls, or .csv"
-            )
-        
-        # Read file
+        # Delegate to helper functions (SRP: Each has single responsibility)
+        validate_file_type(file.filename)
         content = await file.read()
-        if filename.endswith('.csv'):
-            df = pd.read_csv(BytesIO(content))
-        else:
-            df = pd.read_excel(BytesIO(content))
+        df = parse_file_content(content, file.filename)
+        validate_required_columns(df)
         
-        # Validate required columns
-        required_cols = ['ClientId', 'TransactionId', 'ISIN', 'Action', 'Quantity', 'Price', 'Timestamp']
-        missing_cols = [col for col in required_cols if col not in df.columns]
-        if missing_cols:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Missing columns: {', '.join(missing_cols)}"
-            )
-        
-        # Initialize counters
-        success_count = 0
-        error_count = 0
-        duplicate_count = 0
-        errors = []
-        
-        client_dal = ClientDAL(db)
-        transaction_dal = TransactionDAL(db)
-        violation_dal = ViolationDAL(db)
-        
-        # Process each row
-        for idx, row in df.iterrows():
-            try:
-                row_num = idx + 2  # Excel row number (header is row 1)
-                
-                client_id = str(row['ClientId']).strip()
-                transaction_id_excel = str(row['TransactionId']).strip()
-                isin = str(row['ISIN']).strip()
-                action = str(row['Action']).strip().lower()
-                quantity = int(row['Quantity'])
-                price = float(row['Price'])
-                timestamp = pd.to_datetime(row['Timestamp'])
-                
-                # Validate action
-                if action not in ['buy', 'sell']:
-                    error_count += 1
-                    errors.append(f"Row {row_num}: Invalid action '{action}'")
-                    # Log to violations
-                    violation_dal.create_violation(
-                        ViolationCreate(
-                            client_id=client_id,
-                            transaction_id=None,
-                            rule_broken="Invalid Values",
-                            description=f"Invalid action: {action}. Must be 'buy' or 'sell'.",
-                            timestamp=datetime.utcnow()
-                        )
-                    )
-                    continue
-                
-                # Validate quantity
-                if quantity <= 0:
-                    error_count += 1
-                    errors.append(f"Row {row_num}: Quantity must be > 0, got {quantity}")
-                    violation_dal.create_violation(
-                        ViolationCreate(
-                            client_id=client_id,
-                            transaction_id=None,
-                            rule_broken="Invalid Values",
-                            description=f"Quantity must be positive, got {quantity}",
-                            timestamp=datetime.utcnow()
-                        )
-                    )
-                    continue
-                
-                # Validate price
-                if price <= 0:
-                    error_count += 1
-                    errors.append(f"Row {row_num}: Price must be > 0, got {price}")
-                    violation_dal.create_violation(
-                        ViolationCreate(
-                            client_id=client_id,
-                            transaction_id=None,
-                            rule_broken="Invalid Values",
-                            description=f"Price must be positive, got {price}",
-                            timestamp=datetime.utcnow()
-                        )
-                    )
-                    continue
-                
-                # Validate ISIN
-                if len(isin) != 12:
-                    error_count += 1
-                    errors.append(f"Row {row_num}: ISIN must be 12 chars, got {len(isin)}")
-                    violation_dal.create_violation(
-                        ViolationCreate(
-                            client_id=client_id,
-                            transaction_id=None,
-                            rule_broken="Invalid Values",
-                            description=f"ISIN must be 12 characters, got '{isin}'",
-                            timestamp=datetime.utcnow()
-                        )
-                    )
-                    continue
-                
-                # Check for duplicate transaction
-                if transaction_dal.get_transaction_by_excel_id(transaction_id_excel):
-                    duplicate_count += 1
-                    continue
-                
-                # Create client if missing
-                if not client_dal.get_client_by_id(client_id):
-                    client_dal.create_client(ClientCreate(id=client_id))
-                
-                # Create transaction
-                tx_data = TransactionCreate(
-                    client_id=client_id,
-                    transaction_id_excel=transaction_id_excel,
-                    isin=isin,
-                    action=action,
-                    quantity=quantity,
-                    price=price,
-                    timestamp=timestamp
-                )
-                transaction_dal.create_transaction(tx_data)
-                success_count += 1
-                
-            except Exception as e:
-                error_count += 1
-                errors.append(f"Row {row_num}: {str(e)}")
+        # Process transactions using service (OCP: Easy to extend processing logic)
+        upload_service = TransactionUploadService(db)
+        result = upload_service.process_dataframe(df)
         
         return {
-            "status": "success" if error_count == 0 else "partial",
+            "status": "success" if result["error_count"] == 0 else "partial",
             "summary": {
                 "total_rows": len(df),
-                "successfully_imported": success_count,
-                "duplicates_skipped": duplicate_count,
-                "errors": error_count
+                "successfully_imported": result["success_count"],
+                "duplicates_skipped": result["duplicate_count"],
+                "errors": result["error_count"]
             },
-            "error_details": errors if errors else None
+            "error_details": result["errors"] if result["errors"] else None
         }
         
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
@@ -232,9 +112,8 @@ async def get_clients(
     Get list of all clients in the database.
     Simple list of client IDs.
     """
-    client_dal = ClientDAL(db)
-    clients = client_dal.get_all_clients(skip=skip, limit=limit)
-    return clients
+    service = ClientRetrievalService(db)
+    return service.get_all(skip=skip, limit=limit)
 
 
 # ==================== 3. GET /clients/{client_id}/positions ====================
@@ -253,30 +132,8 @@ async def get_client_positions(
     - realized_pnl: P&L from completed positions
     - unrealized_pnl: P&L from current holdings
     """
-    # Verify client exists
-    client_dal = ClientDAL(db)
-    if not client_dal.get_client_by_id(client_id):
-        raise HTTPException(status_code=404, detail="Client not found")
-    
-    # Calculate positions using FIFO
-    calculator = PositionCalculator(db)
-    positions_dict = calculator.calculate_positions_fifo(client_id)
-    
-    positions = [
-        PositionDetail(
-            isin=pos['isin'],
-            total_quantity=pos['total_quantity'],
-            average_cost=pos['average_cost'],
-            realized_pnl=pos['realized_pnl'],
-            unrealized_pnl=pos['unrealized_pnl']
-        )
-        for pos in positions_dict.values()
-    ]
-    
-    return ClientPositionsResponse(
-        client_id=client_id,
-        positions=positions
-    )
+    service = ClientPositionService(db)
+    return service.get_positions(client_id)
 
 
 # ==================== 4. GET /violations ====================
@@ -296,9 +153,8 @@ async def get_violations(
     - Sell Before Buy: Selling ISIN not yet purchased
     - Invalid Values: Quantity/price/action validation failures
     """
-    violation_dal = ViolationDAL(db)
-    violations = db.query(Violation).offset(skip).limit(limit).all()
-    return violations
+    service = ViolationRetrievalService(db)
+    return service.get_violations(skip=skip, limit=limit)
 
 
 # ==================== 5. GET /analytics ====================
@@ -314,14 +170,8 @@ async def get_analytics(db: Session = Depends(get_db)):
     - Most volatile client (largest portfolio value variation)
     - ISIN concentration report (ISINs in >70% of clients with client lists)
     """
-    analytics = AnalyticsService(db)
-    
-    return AnalyticsResponse(
-        top_3_traded_isins=analytics.get_top_3_traded_isins(),
-        average_holding_time_per_client=analytics.get_average_holding_time_per_client(),
-        most_volatile_client=analytics.get_most_volatile_client(),
-        isin_concentration_report=analytics.get_isin_concentration_report()
-    )
+    service = AnalyticsRetrievalService(db)
+    return service.get_all_analytics()
 
 
 # ==================== HEALTH & ROOT ====================

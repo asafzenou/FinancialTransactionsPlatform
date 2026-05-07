@@ -238,3 +238,4 @@ build/
 *.db
 *.sqlite
 *.sqlite3
+files/*
