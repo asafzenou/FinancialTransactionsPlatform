@@ -71,12 +71,16 @@ Models (ORM + Schemas)
 | `models/orm_models.py` | `{NewModel}` (if needed) | ORM definition for new entity | — | — | Base (DeclarativeBase) |
 | `schemas/{schemas_file}.py` | `{RequestSchema}`, `{ResponseSchema}` | Pydantic request/response validation | HTTP JSON | Python dicts | Pydantic BaseModel |
 
-**Example:**
+**Example from Financial Transactions Platform:**
 | File Path | Class/Function | Responsibility | Inputs | Outputs | Dependencies |
 |-----------|----------------|-----------------|--------|---------|--------------|
-| `main.py` | `@app.post("/detect-day-trading")` | HTTP endpoint; validates payload; calls service | `FileUpload` | `DetectionResponse` | `DayTradingDetector`, `get_db` |
-| `services/day_trading_detector.py` | `DayTradingDetector.detect()` | Identifies same-ISIN buy/sell on same day | `list[Transaction]` | `list[Violation]` | `TransactionDAL`, `ViolationDAL` |
-| `dal/violation_dal.py` | `ViolationDAL.create_violation()` | Persists violation to DB | `ViolationCreate` | `Violation` (ORM) | SQLAlchemy Session |
+| `main.py` | `@app.post("/upload-transactions")` | HTTP endpoint; validates file; delegates to service | `UploadFile` | `UploadTransactionResponse` | `TransactionUploadService`, `file_validation`, `get_db` |
+| `services/file_validation.py` | `validate_file_type()` | Validates file extension | filename: str | None (raises HTTPException) | FastAPI HTTPException |
+| `services/transaction_upload_service.py` | `TransactionUploadService.process_dataframe()` | Orchestrates upload; processes each row | DataFrame | Dict with stats | `TransactionRowProcessor` |
+| `services/transaction_upload_service.py` | `RowValidator.validate_action()` | Validates transaction action field | action: str | action: str | ValueError |
+| `dal/financial_dal.py` | `TransactionDAL.create_transaction()` | Persists transaction to DB | `TransactionCreate` | `Transaction` (ORM) | SQLAlchemy Session |
+| `models/orm_models.py` | `Transaction` | ORM model definition | — | — | Base (DeclarativeBase) |
+| `schemas/financial_schemas.py` | `TransactionCreate` | Validates incoming transaction data | JSON | Python dict | Pydantic BaseModel |
 
 ---
 
@@ -97,7 +101,32 @@ classDiagram
     DAL --> ORM
     Route --> Schema
     
-    note "API Layer has NO business logic\nService Layer is database-agnostic\nDAL Layer owns all SQL queries"
+    note "API Layer: Clean HTTP handlers\nService Layer: Pure business logic\nDAL Layer: Database queries only\nModels: ORM + Pydantic validation"
+```
+
+### Real Example: Transaction Upload Flow
+```mermaid
+classDiagram
+    class UploadRoute["@app.post(/upload-transactions)"]
+    class FileValidation["file_validation.py"]
+    class UploadService["TransactionUploadService"]
+    class RowProcessor["TransactionRowProcessor"]
+    class RowValidator["RowValidator"]
+    class TransactionDAL["TransactionDAL"]
+    class ClientDAL["ClientDAL"]
+    class Transaction["Transaction (ORM)"]
+    class UploadSchema["UploadTransactionResponse"]
+    
+    UploadRoute --> FileValidation
+    UploadRoute --> UploadService
+    UploadRoute --> UploadSchema
+    UploadService --> RowProcessor
+    RowProcessor --> RowValidator
+    RowProcessor --> TransactionDAL
+    RowProcessor --> ClientDAL
+    TransactionDAL --> Transaction
+    
+    note "Validation logic in RowValidator\nRow processing in RowProcessor\nUpload orchestration in UploadService"
 ```
 
 **Example (Day Trading Detection):**

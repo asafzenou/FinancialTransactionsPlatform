@@ -209,22 +209,27 @@ Every implementation MUST pass this checklist before merge:
 ```
 backend/
 ├── __init__.py
-├── main.py                 # FastAPI app, 5 endpoints
-├── database.py             # SQLAlchemy setup, SessionLocal, get_db()
+├── main.py                         # FastAPI app, 5 clean endpoints
+├── database.py                     # SQLAlchemy setup, SessionLocal, get_db()
 ├── models/
 │   ├── __init__.py
-│   └── orm_models.py       # Client, Transaction, Position, Violation (ORM)
+│   └── orm_models.py               # Client, Transaction, Violation (ORM)
 ├── schemas/
 │   ├── __init__.py
-│   ├── assignment_schemas.py   # Response schemas for 5 endpoints
-│   └── financial_schemas.py    # Shared input/output schemas
+│   ├── assignment_schemas.py       # Response schemas for 5 endpoints
+│   └── financial_schemas.py        # Shared input/output schemas
 ├── dal/
 │   ├── __init__.py
-│   └── financial_dal.py    # ClientDAL, TransactionDAL, ViolationDAL
+│   └── financial_dal.py            # ClientDAL, TransactionDAL, ViolationDAL
 └── services/
     ├── __init__.py
-    ├── position_calculator.py   # FIFO logic
-    └── analytics.py             # Top 3 ISINs, holding time, volatility, concentration
+    ├── file_validation.py          # File type & schema validation
+    ├── transaction_upload_service.py # TransactionUploadService, TransactionRowProcessor, RowValidator
+    ├── client_service.py           # ClientRetrievalService, ClientPositionService
+    ├── violation_service.py        # ViolationRetrievalService
+    ├── analytics_retrieval_service.py # AnalyticsRetrievalService
+    ├── position_calculator.py      # FIFO logic
+    └── analytics.py                # Top 3 ISINs, holding time, volatility, concentration
 ```
 
 **Established Rules:**
@@ -233,6 +238,30 @@ backend/
 - Action: Must be 'buy' or 'sell'.
 - FIFO: Positions calculated by matching sells to oldest buys.
 - Violations: Rule violations logged with `rule_broken`, `description`, `client_id`, `transaction_id`.
+
+### API Layer (`main.py`) - SOLID Refactoring
+Each endpoint is now **thin and focused**:
+```python
+# ✅ GOOD: Clean endpoint, delegates to service
+@app.post("/upload-transactions", response_model=UploadTransactionResponse)
+async def upload_transactions(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    validate_file_type(file.filename)
+    content = await file.read()
+    df = parse_file_content(content, file.filename)
+    validate_required_columns(df)
+    upload_service = TransactionUploadService(db)
+    result = upload_service.process_dataframe(df)
+    return format_response(result)
+```
+
+### Service Layer (`services/`) - Responsibilities
+- **`file_validation.py`** - Pure functions for file type & column validation
+- **`transaction_upload_service.py`** - Orchestrates upload; handles row-level validation via `RowValidator`
+- **`client_service.py`** - Client retrieval & position calculation service
+- **`violation_service.py`** - Violation retrieval with pagination
+- **`analytics_retrieval_service.py`** - Aggregates analytics metrics
+- **`position_calculator.py`** (existing) - FIFO position calculations
+- **`analytics.py`** (existing) - Metrics generation
 
 ---
 

@@ -22,7 +22,12 @@ For every new feature, you MUST generate/update the following artifacts using ge
 This document serves as the **ground truth** for the feature. It MUST include:
 
 1. **Project Architecture Context:** How this feature fits into the existing Financial Transactions Platform:
-   - Existing layers: API Layer (main.py/routers), Service Layer (services/), Data Access Layer (dal/), Models (models/), Schemas (schemas/)
+   - Existing layers: 
+     - **API Layer** (`main.py`) - Clean endpoints that delegate to services
+     - **Service Layer** (`services/`) - All business logic (file validation, transaction processing, client operations, analytics, position calculations)
+     - **Data Access Layer** (`dal/financial_dal.py`) - Database queries (ClientDAL, TransactionDAL, ViolationDAL)
+     - **Models** (`models/orm_models.py`) - SQLAlchemy ORM models (Client, Transaction, Violation)
+     - **Schemas** (`schemas/`) - Pydantic HTTP validation schemas
    - Financial domain context: FIFO positions, transaction processing, violation detection, analytics aggregation
    
 2. **File & Responsibility Matrix:** A Markdown table detailing exact file paths, object/class names, and their strict responsibilities.
@@ -75,6 +80,15 @@ This document serves as the **ground truth** for the feature. It MUST include:
 - **Error Handling:** Service layer raises domain exceptions; Router layer converts to FastAPI HTTPException.
 
 ### Existing Architecture Patterns to Preserve
+- **Clean API Layer:** Thin endpoints (~5-10 lines) that delegate to services; no business logic in main.py
+- **Service-Oriented Design:** Business logic lives in `services/` classes with single responsibilities:
+  - `file_validation.py` - File type and column validation
+  - `transaction_upload_service.py` - Upload orchestration and row processing
+  - `client_service.py` - Client operations and position retrieval
+  - `violation_service.py` - Violation querying
+  - `analytics_retrieval_service.py` - Analytics aggregation
+  - `position_calculator.py` - FIFO position calculations
+  - `analytics.py` - Metrics generation
 - **Transaction Processing:** Transaction model includes `timestamp`, `action` (buy/sell), `isin`, `quantity`, `price`, `client_id`.
 - **FIFO Calculation:** `PositionCalculator` service maintains order of buy transactions; sells are matched FIFO.
 - **Violation Detection:** Violations logged to `Violation` table with `rule_broken`, `description`, `client_id`, `transaction_id`.
