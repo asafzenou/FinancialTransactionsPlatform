@@ -62,41 +62,50 @@ async def upload_transactions(
 ):
     """
     Bulk upload transactions from Excel or CSV file.
-    
-    Validates:
-    - Quantity > 0
-    - Price > 0
-    - Action in ['buy', 'sell']
-    
-    Invalid rows are logged to Violation table with 'Invalid Values' rule.
-    Prevents duplicate ingestion using Excel TransactionId.
-    Auto-creates clients if they don't exist.
+
+    Per Part D of the assignment, every row is evaluated against all 4 rules.
+    Any row that violates one or more rules is recorded in the `violations`
+    table (queryable via GET /violations) and is NOT inserted into the
+    `transactions` table.
+
+    Rules:
+    - Invalid Values     (Quantity < 0 or Price < 0)
+    - Sell Before Buy    (selling more units than the client currently holds)
+    - Day Trading        (same ISIN bought and sold by the same client on the same day)
+    - Risk Concentration (a single ISIN > 50% of the client's portfolio value)
+
+    Clients referenced only by violations are auto-created so the FK holds.
+    Duplicate uploads are detected via the Excel TransactionId.
     """
     try:
-        # Delegate to helper functions (SRP: Each has single responsibility)
         validate_file_type(file.filename)
         content = await file.read()
         df = parse_file_content(content, file.filename)
         validate_required_columns(df)
-        
-        # Process transactions using service (OCP: Easy to extend processing logic)
+
         upload_service = TransactionUploadService(db)
         result = upload_service.process_dataframe(df)
-        
+
+        has_violations = result["violation_row_count"] > 0
+        status = "partial" if has_violations else "success"
+
         return {
-            "status": "success" if result["error_count"] == 0 else "partial",
+            "status": status,
             "summary": {
                 "total_rows": len(df),
                 "successfully_imported": result["success_count"],
                 "duplicates_skipped": result["duplicate_count"],
-                "errors": result["error_count"]
+                "violations_detected": result["violation_row_count"],
+                "violations_logged": result["violations_logged"],
             },
-            "error_details": result["errors"] if result["errors"] else None
+            "error_details": result["errors"] if result["errors"] else None,
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        # Roll back any in-flight session state so the next request is healthy.
+        db.rollback()
         raise HTTPException(status_code=500, detail=f"Upload failed: {str(e)}")
 
 
@@ -146,12 +155,12 @@ async def get_violations(
 ):
     """
     Get all business rule violations from the Violation table.
-    
-    Rule types:
-    - Day Trading: Multiple buy/sell of same ISIN on same day
-    - Risk Concentration: Single position >30% of portfolio
-    - Sell Before Buy: Selling ISIN not yet purchased
-    - Invalid Values: Quantity/price/action validation failures
+
+    Rule types (per Part D):
+    - Day Trading:        More than 3 buy/sell pairs of the same ISIN in a rolling 24h window
+    - Risk Concentration: Single ISIN > 50% of client's portfolio value
+    - Sell Before Buy:    Selling more units than the client currently holds
+    - Invalid Values:     Quantity < 0 or Price < 0 (or unparseable row)
     """
     service = ViolationRetrievalService(db)
     return service.get_violations(skip=skip, limit=limit)

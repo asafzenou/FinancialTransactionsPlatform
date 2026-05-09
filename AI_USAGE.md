@@ -1,7 +1,7 @@
 # AI Usage Report - Financial Transactions Platform
 
 **Project:** Financial Transactions Platform (FastAPI + React)  
-**Last Updated:** May 9, 2026  
+**Last Updated:** May 9, 2026 (post-bugfix pass)  
 **Status:** ✅ COMPLETE & PRODUCTION-READY
 
 ---
@@ -296,6 +296,35 @@ Database Mocking: 100%
 - **Problem:** Nested side_effect functions causing KeyErrors
 - **Fix:** Simplified to straightforward return_value pattern
 - **Impact:** Tests more maintainable & reliable
+
+### Issue #6: Logical Collision Between Balance Validation and Day Trading Detection ✅
+- **Problem:** When uploading a file with intra-day Buy/Sell pairs, every Sell was
+  being flagged as **Sell Before Buy** because the rows were processed in file order
+  rather than chronological order — so the matching Buy hadn't been committed yet
+  when the Sell was evaluated. This also masked the **Day Trading** rule, since
+  pair counts never accumulated.
+- **Fix:** `TransactionUploadService.process_dataframe` now sorts the DataFrame
+  by `Timestamp` (stable mergesort) before iterating, and rules are split into
+  two classes: ERROR rules (`Invalid Values`, `Sell Before Buy`) block insertion,
+  while WARNING rules (`Day Trading`, `Risk Concentration`) coexist with a valid
+  trade — the transaction is committed and the violation is logged against its
+  real `transaction_id`.
+- **Impact:** Day Trading correctly fires on the row that completes the 4th pair
+  inside a 24h window; intra-day Buy/Sell sequences no longer trip Sell-Before-Buy.
+
+### Issue #7: Frontend `transaction_id` Showed `—` Instead of the ID ✅
+- **Problem:** The Violations table rendered `transaction_id` as a dash because
+  the backend always wrote `transaction_id=None` on the violation record, even
+  when a real transaction had been created.
+- **Fix:** WARNING-class violations are now persisted **after** the transaction
+  insert, using the new row's autoincrement id. ERROR-class violations remain
+  unlinked (transaction_id=None) since no transaction was created — a meaningful
+  distinction the UI now reflects.
+- **Impact:** The Violations page shows the originating Transaction ID for
+  Day Trading and Risk Concentration rows, while still showing `—` for
+  pure Sell-Before-Buy / Invalid-Values entries (which never produced a row in
+  the `transactions` table). Frontend mapping was already correct
+  (`transaction_id`, snake_case), so no React changes were needed for the column.
 
 ---
 

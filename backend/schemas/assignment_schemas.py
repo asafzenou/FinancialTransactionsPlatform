@@ -52,10 +52,10 @@ class ViolationResponse(BaseModel):
     id: int
     client_id: str
     transaction_id: Optional[int] = None
-    rule_broken: str = Field(description="Type: 'Day Trading', 'Risk Concentration', 'Sell Before Buy', 'Invalid Values'")
+    rule_broken: str = Field(description="One of: 'Day Trading', 'Risk Concentration', 'Sell Before Buy', 'Invalid Values'")
     description: str
     timestamp: datetime
-    
+
     class Config:
         from_attributes = True
 

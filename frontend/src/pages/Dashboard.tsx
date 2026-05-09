@@ -45,10 +45,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ onNavigate }) => {
   });
 
   const handleUploadSuccess = (response: UploadTransactionResponse) => {
+    const { successfully_imported, violations_detected, duplicates_skipped } = response.summary;
     const message =
       response.status === 'success'
-        ? `Successfully imported ${response.summary.successfully_imported} transactions`
-        : `Partial import: ${response.summary.successfully_imported} imported, ${response.summary.errors} errors`;
+        ? `Successfully imported ${successfully_imported} transactions`
+        : `Partial import: ${successfully_imported} imported, ${violations_detected} flagged with violations, ${duplicates_skipped} duplicates skipped`;
 
     setNotification({
       message,

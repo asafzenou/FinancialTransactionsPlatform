@@ -70,11 +70,13 @@ class Transaction(Base):
     """
     __tablename__ = "transactions"
     
+    # Positivity of quantity/price is enforced at the application layer via the
+    # Invalid Values rule (Part D), which logs a violation rather than blocking
+    # the insert at the DB level. Keeping a CHECK here would bypass the rule
+    # and surface as an opaque 500 instead of a row in the violations table.
     __table_args__ = (
         UniqueConstraint('transaction_id_excel', name='uq_transaction_id_excel'),
         CheckConstraint("action IN ('buy', 'sell')", name='ck_transaction_action'),
-        CheckConstraint('quantity > 0', name='ck_transaction_quantity_positive'),
-        CheckConstraint('price > 0', name='ck_transaction_price_positive'),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)

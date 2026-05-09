@@ -66,6 +66,19 @@ class TransactionDAL:
         return self.db.query(Transaction).filter(
             Transaction.transaction_id_excel == transaction_id_excel
         ).first()
+    
+    def get_transactions_by_client_and_isin(self, client_id: str, isin: str) -> List[Transaction]:
+        """Get all transactions for a client for a specific ISIN, ordered by timestamp"""
+        return self.db.query(Transaction).filter(
+            Transaction.client_id == client_id,
+            Transaction.isin == isin
+        ).order_by(Transaction.timestamp).all()
+
+    def get_all_transactions_by_client(self, client_id: str) -> List[Transaction]:
+        """Get all transactions for a client (used for portfolio-wide checks)."""
+        return self.db.query(Transaction).filter(
+            Transaction.client_id == client_id
+        ).order_by(Transaction.timestamp).all()
 
 
 # ==================== VIOLATION DAL ====================

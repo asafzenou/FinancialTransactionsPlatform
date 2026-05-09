@@ -26,13 +26,17 @@ class ClientResponse(BaseModel):
 # ==================== TRANSACTION ====================
 
 class TransactionCreate(BaseModel):
-    """Schema for creating a new transaction"""
+    """Schema for creating a new transaction.
+
+    Used only after violation checks pass — invalid rows are routed to the
+    violations table and never reach this schema.
+    """
     client_id: str = Field(..., description="Client ID")
     transaction_id_excel: str = Field(..., description="Unique transaction ID from Excel")
     isin: str = Field(..., min_length=12, max_length=12, description="ISIN code (12 characters)")
     action: Literal["buy", "sell"] = Field(..., description="Transaction action: buy or sell")
-    quantity: int = Field(..., gt=0, description="Number of units (must be positive)")
-    price: float = Field(..., gt=0, description="Price per unit (must be positive)")
+    quantity: int = Field(..., description="Number of units")
+    price: float = Field(..., description="Price per unit")
     timestamp: datetime = Field(..., description="Transaction timestamp")
 
 

@@ -30,7 +30,8 @@ export interface UploadSummary {
   total_rows: number;
   successfully_imported: number;
   duplicates_skipped: number;
-  errors: number;
+  violations_detected: number;
+  violations_logged: number;
 }
 
 export interface UploadTransactionResponse {
