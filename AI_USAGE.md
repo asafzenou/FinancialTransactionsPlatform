@@ -104,6 +104,15 @@ This document tracks all AI-assisted development, code generation, manual modifi
 - Pattern preservation
 - Testing strategy
 
+**After the Backend was ready this is an example of a prompt for creating the frontend:**
+```
+#codebase 
+#file:backend 
+#search 
+
+The Senior React Architect PromptRole: You are a Senior Frontend Engineer specializing in React, TypeScript, and Financial Dashboard UI/UX.Task: Build a clean, modular React frontend for a Financial Transactions Platform called "Lumina Capital". The frontend must interface with a FastAPI backend.Technical Stack:React (Functional Components + Hooks)TypeScript (Strict mode)Tailwind CSS (For professional, clean styling)Lucide React (For icons)Axios (For API communication)Application Structure & Responsibility (Folder Architecture):Please generate the following structure:/src/api: Axios instance configuration and service functions (e.g., transactionService.ts)./src/components: Reusable UI components (Tables, Buttons, Uploaders, Alerts)./src/hooks: Custom hooks for data fetching (e.g., useAnalytics.ts)./src/types: TypeScript interfaces for Transactions, Positions, Violations, and Analytics./src/pages: Main views (Dashboard, Client Details, Violations Log).Functional Requirements (Based on Backend Endpoints):   File Upload: A drag-and-drop or button uploader for the .xlsx transaction file. Display success/error summaries returned by the backend.  Clients View: A dashboard showing a list of all client_ids.Positions Table: A detailed view showing positions per client (ISIN, Quantity, Price).Violations Center: A dedicated section displaying all business rule violations (Day Trading, Risk Concentration, Sell Before Buy) .  Analytics Dashboard: Cards and tables showing Top 3 Traded ISINs, Most Volatile Client, and Average Holding Time .  Design Principles:Engineering-First UI: Use clean data tables with proper alignment.Feedback Loops: Show loading indicators (spinners) and clear error messages (toast notifications or alerts).Responsive Layout: Sidebar navigation with a main content area.Code Quality Standards:Use useEffect and useState properly for lifecycle management.Implement try/catch blocks for all API calls.Ensure separation of concerns: The UI should not contain business logic; logic should reside in services or hooks.Please provide:The Folder Structure overview.The implementation for api/client.ts and types/index.ts.The main Dashboard.tsx and the FileUploader.tsx component.A generic DataTable.tsx component that works for Positions and Violations.
+```
+
 ---
 
 ## III. Code Generation Process
@@ -557,19 +566,6 @@ Database Mocking: 100%
 - **API Reference:** `docs/api/`
 - **AI Prompts:** `docs/ai_prompts/`
 
-### Quick Start
-```bash
-# Backend
-cd backend && python -m venv venv && pip install -r requirements.txt && python main.py
-
-# Frontend
-cd frontend && npm install && npm run dev
-
-# Tests
-cd tests && pytest -v
-```
-
----
 
 **Report Generated:** May 9, 2026  
 **Project Status:** ✅ PRODUCTION-READY  
