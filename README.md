@@ -12,7 +12,7 @@
 | **Frontend** | ![React](https://img.shields.io/badge/React-18-61dafb?style=flat) ![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-3178c6?style=flat) ![Vite](https://img.shields.io/badge/Vite-5+-646cff?style=flat) | Modern UI with fast HMR |
 | **Database** | ![SQLite](https://img.shields.io/badge/SQLite-003b57?style=flat) ![SQLAlchemy](https://img.shields.io/badge/SQLAlchemy-2.0-red?style=flat) | ORM with type-safe queries |
 | **Styling** | ![Tailwind CSS](https://img.shields.io/badge/Tailwind-3+-38b2ac?style=flat) | Utility-first CSS framework |
-| **Testing** | ![Pytest](https://img.shields.io/badge/pytest-100%25_coverage-success?style=flat) | 54 tests (98% coverage) |
+| **Testing** | ![Pytest](https://img.shields.io/badge/pytest-100%25_coverage-success?style=flat) | tests coverage |
 
 ---
 
