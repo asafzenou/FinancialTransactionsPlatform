@@ -280,7 +280,6 @@ The platform follows a **clean 4-layer architecture** for maximum maintainabilit
 ✅ **Dependency Inversion** - API → Service → DAL → Models  
 ✅ **Type Safety** - 100% type hints throughout  
 ✅ **Zero Coupling** - Layers are independent  
-✅ **Full Test Coverage** - 98% coverage across all layers
 
 **→ See [ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed explanation with code examples**
 
@@ -389,40 +388,6 @@ npm install
 # Verify API URL in .env or config
 ```
 
-### ❌ Database issues
-
-**Problem:** Database locked or corrupted
-
-**Solutions:**
-```bash
-# Reset database (deletes all data)
-cd backend
-rm transactions.db
-
-# Run tests to verify database works
-pytest tests/ -v
-
-# Check database permissions
-ls -la transactions.db  # macOS/Linux
-```
-
-### ❌ Tests failing
-
-**Problem:** Some tests don't pass
-
-**Solutions:**
-```bash
-# Run tests with verbose output
-pytest tests/ -v -s
-
-# Run specific test for debugging
-pytest tests/test_logic.py::test_fifo_calculation -v
-
-# View coverage report for uncovered lines
-pytest tests/ --cov=backend --cov-report=html
-open htmlcov/index.html
-```
-
 ---
 
 ## 📊 Project Statistics
@@ -434,32 +399,6 @@ open htmlcov/index.html
 | **Test Suite** | 54 tests, ~98% coverage |
 | **Documentation** | 25+ markdown files |
 | **API Endpoints** | 5 (all working) |
-| **Type Coverage** | 100% (Python hints + TypeScript) |
-
----
-
-## 🎯 Next Steps
-
-### 1. **Test the System**
-   - Upload sample transactions via `/upload-transactions`
-   - View positions with FIFO calculations
-   - Check violation detection
-   - Explore analytics dashboard
-
-### 2. **Review Architecture**
-   - Study the 4-layer backend pattern
-   - Understand component hierarchy in frontend
-   - Review test strategy (100% mocking)
-
-### 3. **Extend the Platform**
-   - Add new endpoints following the existing pattern
-   - Create new services in `backend/services/`
-   - Build new React components in `frontend/src/`
-
-### 4. **Deploy to Production**
-   - See deployment notes in documentation
-   - Use production-grade database (PostgreSQL)
-   - Enable authentication & security headers
 
 ---
 
