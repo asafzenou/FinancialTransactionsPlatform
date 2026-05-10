@@ -1,8 +1,13 @@
+import os
 from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
 # Database URL - using SQLite with a local database file
-DATABASE_URL = "sqlite:///./transactions.db"
+if os.environ.get("TESTING") == "True":
+    DATABASE_URL = "sqlite:///:memory:"
+else:
+    # מצב רגיל - קובץ מקומי
+    DATABASE_URL = "sqlite:///./transactions.db"
 
 # Create engine with modern SQLAlchemy 2.0 settings
 engine = create_engine(

@@ -6,7 +6,7 @@ Uses unittest.mock to mock all database access - no real database connections.
 
 import sys
 import os
-
+os.environ["TESTING"] = "True"
 # Add project root to path so backend module can be imported
 # conftest.py is at: project_root/tests/backend/conftest.py
 conftest_dir = os.path.dirname(os.path.abspath(__file__))  # tests/backend
