@@ -13,7 +13,6 @@ This document tracks all AI-assisted development, code generation, manual modifi
 **Key Statistics:**
 - **AI-Assisted Code:** ~2,500 lines (backend + frontend)
 - **Manual Modifications:** ~500 lines (fixes, enhancements)
-- **Test Suite:** 54 tests (31 unit + 23 integration)
 - **Architecture:** Clean 4-layer design (Backend & Frontend)
 
 ---
