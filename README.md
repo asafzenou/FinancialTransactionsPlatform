@@ -241,11 +241,7 @@ xdg-open htmlcov/index.html
 
 ### **Test Statistics**
 
-- **Total Tests:** 54
-- **Unit Tests:** 31 (business logic with 100% mocking)
-- **Integration Tests:** 23 (API endpoints)
-- **Coverage:** ~98%
-- **Execution Time:** ~15 seconds
+- **Total Unit Tests:** 27
 
 ### **Run Specific Test Categories**
 
