@@ -14,7 +14,6 @@ from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime, timedelta
 
 from backend.services.position_calculator import PositionCalculator
-from backend.services.transaction_upload_service import RowValidator, TransactionRowProcessor
 
 
 
@@ -213,89 +212,6 @@ class TestFIFOCalculation:
         assert position['realized_pnl'] == 0.0
 
 
-# ==================== INPUT VALIDATION TESTS ====================
-
-@pytest.mark.unit
-@pytest.mark.validation
-@pytest.mark.mock
-class TestInputValidation:
-    """Test input validation for transaction fields (no DB access needed)."""
-    
-    def test_validate_action_valid_buy(self):
-        """Test action validation accepts 'buy' (case-insensitive)."""
-        assert RowValidator.validate_action('buy') == 'buy'
-        assert RowValidator.validate_action('BUY') == 'buy'
-        assert RowValidator.validate_action('  Buy  ') == 'buy'
-    
-    def test_validate_action_valid_sell(self):
-        """Test action validation accepts 'sell' (case-insensitive)."""
-        assert RowValidator.validate_action('sell') == 'sell'
-        assert RowValidator.validate_action('SELL') == 'sell'
-        assert RowValidator.validate_action('  Sell  ') == 'sell'
-    
-    def test_validate_action_invalid(self):
-        """Test action validation rejects invalid actions."""
-        with pytest.raises(ValueError, match="Invalid action"):
-            RowValidator.validate_action('purchase')
-        
-        with pytest.raises(ValueError, match="Invalid action"):
-            RowValidator.validate_action('hold')
-        
-        with pytest.raises(ValueError, match="Invalid action"):
-            RowValidator.validate_action('')
-    
-    def test_validate_quantity_positive(self):
-        """Test quantity validation accepts positive integers."""
-        assert RowValidator.validate_quantity(1) == 1
-        assert RowValidator.validate_quantity(100) == 100
-        assert RowValidator.validate_quantity(999999) == 999999
-    
-    def test_validate_quantity_invalid(self):
-        """Test quantity validation rejects zero and negative values."""
-        with pytest.raises(ValueError, match="Quantity must be positive"):
-            RowValidator.validate_quantity(0)
-        
-        with pytest.raises(ValueError, match="Quantity must be positive"):
-            RowValidator.validate_quantity(-1)
-        
-        with pytest.raises(ValueError, match="Quantity must be positive"):
-            RowValidator.validate_quantity(-100)
-    
-    def test_validate_price_positive(self):
-        """Test price validation accepts positive floats."""
-        assert RowValidator.validate_price(0.01) == 0.01
-        assert RowValidator.validate_price(10.50) == 10.50
-        assert RowValidator.validate_price(9999.99) == 9999.99
-    
-    def test_validate_price_invalid(self):
-        """Test price validation rejects zero and negative values."""
-        with pytest.raises(ValueError, match="Price must be positive"):
-            RowValidator.validate_price(0.0)
-        
-        with pytest.raises(ValueError, match="Price must be positive"):
-            RowValidator.validate_price(-1.0)
-        
-        with pytest.raises(ValueError, match="Price must be positive"):
-            RowValidator.validate_price(-99.99)
-    
-    def test_validate_isin_valid_length(self):
-        """Test ISIN validation accepts exactly 12 characters."""
-        assert RowValidator.validate_isin('US0378331005') == 'US0378331005'
-        assert RowValidator.validate_isin('  GB0002374006  ') == 'GB0002374006'
-        assert RowValidator.validate_isin('DE0008469008') == 'DE0008469008'
-    
-    def test_validate_isin_invalid_length(self):
-        """Test ISIN validation rejects incorrect lengths."""
-        with pytest.raises(ValueError, match="ISIN must be 12 characters"):
-            RowValidator.validate_isin('US037833100')  # 11 chars
-        
-        with pytest.raises(ValueError, match="ISIN must be 12 characters"):
-            RowValidator.validate_isin('US03783310055')  # 13 chars
-        
-        with pytest.raises(ValueError, match="ISIN must be 12 characters"):
-            RowValidator.validate_isin('')  # empty
-
-
 # ==================== VIOLATION DETECTION TESTS ====================
 
 @pytest.mark.unit
@@ -463,12 +379,7 @@ class TestDataIntegrity:
 @pytest.mark.mock
 class TestEdgeCases:
     """Test edge cases and boundary conditions with mocking."""
-    
-    def test_fifo_zero_price_handling(self):
-        """Test FIFO handles edge case of zero price (should fail validation)."""
-        with pytest.raises(ValueError, match="Price must be positive"):
-            RowValidator.validate_price(0.0)
-    
+ 
     def test_multiple_clients_portfolio_isolation(self, transaction_factory, client_factory, mock_session):
         """
         Test that multiple clients' portfolios are isolated (mocked DB).

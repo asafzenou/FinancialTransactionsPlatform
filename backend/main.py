@@ -13,6 +13,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
+import uvicorn
 
 from backend.database import engine, Base, get_db
 from backend.schemas.assignment_schemas import (
@@ -207,20 +208,5 @@ async def root():
 
 
 if __name__ == "__main__":
-    import uvicorn
-    import webbrowser
-    import time
-    from threading import Thread
-    
-    def open_browser():
-        """Open Swagger UI after server starts"""
-        time.sleep(2)  # Wait for server to start
-        webbrowser.open("http://localhost:8000/docs")
-    
-    # Start browser in background thread
-    browser_thread = Thread(target=open_browser, daemon=True)
-    browser_thread.start()
-    
-    # Run server
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000) # http://localhost:8000/docs
 
